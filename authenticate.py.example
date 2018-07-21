@@ -1,0 +1,4 @@
+trello_api_key = ''
+trello_api_token = ''
+zendesk_email = ''
+zendesk_password = ''
