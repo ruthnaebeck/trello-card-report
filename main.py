@@ -4,6 +4,8 @@ import requests
 import re
 import json
 
+assignees = {}
+
 def find_zendesk_url(card):
   try:
     attach_json = requests.request('GET', trello.url_cards + card['id'] + '/attachments' + trello.tokens).json()
@@ -19,21 +21,36 @@ def find_zendesk_url(card):
     else:
       return 'No Zendesk Ticket Found'
   except:
-    return 'An error occurred'
+    return 'find_zendesk_url error'
+
+def get_zendesk_user(user_id):
+  try:
+    get_ticket_url = 'https://datadog.zendesk.com/api/v2/users/%s.json' % (user_id)
+    user_json = requests.get(url=get_ticket_url, auth=(authenticate.zendesk_email, authenticate.zendesk_password)).json()['user']
+    return user_json['name']
+  except:
+    return 'get_zendesk_user error'
 
 def get_zendesk_ticket(ticket_id):
+  print(ticket_id)
   try:
     get_ticket_url = 'https://datadog.zendesk.com/api/v2/tickets/%s.json' % (ticket_id)
     ticket_json = requests.get(url=get_ticket_url, auth=(authenticate.zendesk_email, authenticate.zendesk_password)).json()['ticket']
-    ticket_parts = {
-      'zAssigneeId': ticket_json['assignee_id'],
+    assignee_id = ticket_json['assignee_id']
+    try:
+      assignee_name = assignees[assignee_id]
+    except KeyError:
+      assignee_name = get_zendesk_user(assignee_id)
+      assignees[assignee_id] = assignee_name
+    return {
+      'zAssigneeId': assignee_id,
+      'zAssigneeName': assignee_name,
       'zStatus': ticket_json['status'],
       'zLastUpdated': ticket_json['updated_at']
     }
-    print(ticket_parts)
-    return ticket_parts
   except:
-    return 'An error occurred'
+    print('get_zendesk_ticket error')
+    return {}
 
 def get_trello_cards():
   for b in trello.trello_boards:
@@ -42,19 +59,26 @@ def get_trello_cards():
       for c in list_json:
         zendesk_url = find_zendesk_url(c)
         zendesk_id = zendesk_url.split('/').pop()
-        if len(zendesk_id) <= 6:
-          zendesk_ticket = get_zendesk_ticket(zendesk_id)
-        l['cards'].append({
+        new_card = {
           'tName': c['name'],
           'id': c['id'],
           'tLastUpdated': c['dateLastActivity'],
           'tUrl': c['shortUrl'],
           'zUrl': zendesk_url
-        })
-  # print(trello.trello_boards)
+        }
+        if len(zendesk_id) <= 6:
+          zendesk_ticket = get_zendesk_ticket(zendesk_id)
+          try:
+            new_card['zAssigneeId'] = zendesk_ticket['zAssigneeId']
+            new_card['zAssigneeName'] = zendesk_ticket['zAssigneeName']
+            new_card['zStatus'] = zendesk_ticket['zStatus']
+            new_card['zLastUpdated'] = zendesk_ticket['zLastUpdated']
+          except KeyError:
+            print(zendesk_id, 'No Zendesk Ticket Found')
+        l['cards'].append(new_card)
 
 def main_script():
   get_trello_cards()
-  # get_zendesk_ticket('125226')
+  print('Complete!')
 
 main_script()
