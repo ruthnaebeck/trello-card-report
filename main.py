@@ -32,7 +32,6 @@ def get_zendesk_user(user_id):
     return 'get_zendesk_user error'
 
 def get_zendesk_ticket(ticket_id):
-  print(ticket_id)
   try:
     get_ticket_url = 'https://datadog.zendesk.com/api/v2/tickets/%s.json' % (ticket_id)
     ticket_json = requests.get(url=get_ticket_url, auth=(authenticate.zendesk_email, authenticate.zendesk_password)).json()['ticket']
@@ -53,12 +52,19 @@ def get_zendesk_ticket(ticket_id):
     return {}
 
 def get_trello_cards():
+  print('--------------------')
   for b in trello.trello_boards:
     for l in b['lists']:
       list_json = requests.request('GET', trello.url_lists + l['id'] + '/cards' + trello.tokens).json()
+      print(b['name'])
+      print('--------------------')
+      x = 0
       for c in list_json:
+        x += 1
+        print(str(x) + ' - ' + c['name'])
         zendesk_url = find_zendesk_url(c)
         zendesk_id = zendesk_url.split('/').pop()
+        print('    Ticket #' + zendesk_id)
         new_card = {
           'tName': c['name'],
           'id': c['id'],
@@ -75,7 +81,9 @@ def get_trello_cards():
             new_card['zLastUpdated'] = zendesk_ticket['zLastUpdated']
           except KeyError:
             print(zendesk_id, 'No Zendesk Ticket Found')
-        l['cards'].append(new_card)
+        print(new_card)
+        # l['cards'].append(new_card)
+      print('--------------------')
 
 def main_script():
   get_trello_cards()
