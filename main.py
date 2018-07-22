@@ -1,16 +1,24 @@
 import trello
 import requests
+import re
+import json
 
-def find_zendesk_url(card_id):
+def find_zendesk_url(card):
   try:
-    attach_json = requests.request('GET', trello.url_cards + card_id + '/attachments' + trello.tokens).json()
+    attach_json = requests.request('GET', trello.url_cards + card['id'] + '/attachments' + trello.tokens).json()
     if len(attach_json):
       for a in attach_json:
         if a['url'].startswith('https://datadog.zendesk.com/agent/tickets/'):
           return a['url']
+    regex = r'https:\/\/datadog\.zendesk\.com\/agent\/tickets\/[0-9]*'
+    card_str = json.dumps(card)
+    searchObj = re.search(regex, card_str, re.M|re.I)
+    if searchObj:
+      return searchObj.group()
+    else:
+      return 'No Zendesk Ticket Found'
   except:
     return 'An error occurred'
-  return 'No attachments found'
 
 def main_script():
   for b in trello.trello_boards:
@@ -22,7 +30,7 @@ def main_script():
           'id': c['id'],
           'lastUpdated': c['dateLastActivity'],
           'cardLink': c['shortUrl'],
-          'zendeskLink': find_zendesk_url(c['id'])
+          'zendeskLink': find_zendesk_url(c)
         })
 
   print(trello.trello_boards)
