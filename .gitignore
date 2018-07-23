@@ -1,4 +1,3 @@
 *.pyc
 authenticate.py
 trello*
-quickstart.py

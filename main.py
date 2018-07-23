@@ -3,8 +3,17 @@ import trello
 import requests
 import re
 import json
+import time
+import datetime as dt
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
 
 assignees = {}
+scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+credentials = ServiceAccountCredentials.from_json_keyfile_name(authenticate.google_json_file, scope)
+gc = gspread.authorize(credentials)
+wb = gc.open_by_key(authenticate.google_sheet_id)
+wks = wb.worksheet('Report')
 
 def find_zendesk_url(card):
   try:
@@ -51,7 +60,7 @@ def get_zendesk_ticket(ticket_id):
     print('get_zendesk_ticket error')
     return {}
 
-def get_trello_cards():
+def main_script():
   print('--------------------')
   for b in trello.trello_boards:
     for l in b['lists']:
@@ -65,28 +74,25 @@ def get_trello_cards():
         zendesk_url = find_zendesk_url(c)
         zendesk_id = zendesk_url.split('/').pop()
         print('    Ticket #' + zendesk_id)
-        new_card = {
-          'tName': c['name'],
-          'id': c['id'],
-          'tLastUpdated': c['dateLastActivity'],
-          'tUrl': c['shortUrl'],
-          'zUrl': zendesk_url
-        }
+        new_row = [
+          b['name'],
+          l['name'],
+          c['name'],
+          c['shortUrl'],
+          str(dt.datetime.strptime(c['dateLastActivity'], '%Y-%m-%dT%H:%M:%S.%fZ')),
+          zendesk_url
+        ]
         if len(zendesk_id) <= 6:
           zendesk_ticket = get_zendesk_ticket(zendesk_id)
           try:
-            new_card['zAssigneeId'] = zendesk_ticket['zAssigneeId']
-            new_card['zAssigneeName'] = zendesk_ticket['zAssigneeName']
-            new_card['zStatus'] = zendesk_ticket['zStatus']
-            new_card['zLastUpdated'] = zendesk_ticket['zLastUpdated']
+            new_row.append(zendesk_ticket['zAssigneeName'])
+            new_row.append(zendesk_ticket['zStatus'])
+            new_row.append(str(dt.datetime.strptime(zendesk_ticket['zLastUpdated'], '%Y-%m-%dT%H:%M:%SZ')))
           except KeyError:
             print(zendesk_id, 'No Zendesk Ticket Found')
-        print(new_card)
-        # l['cards'].append(new_card)
+        print(new_row)
+        wks.insert_row(new_row, index=2, value_input_option='USER_ENTERED')
       print('--------------------')
-
-def main_script():
-  get_trello_cards()
   print('Complete!')
 
 main_script()

@@ -11,3 +11,5 @@ NOTE - You may need to use your personal gmail account for these steps
 - Add the JSON file name to .gitignore
 - Create a Google Sheet
 - Share the Google Sheet with the `client_email` listed in the JSON file
+- `pip install --upgrade google-api-python-client oauth2client`
+- `pip install gspread`
