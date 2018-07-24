@@ -1,3 +1,4 @@
 *.pyc
 authenticate.py
-trello*
+trello.py
+trello-card*

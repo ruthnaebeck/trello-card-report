@@ -60,7 +60,56 @@ def get_zendesk_ticket(ticket_id):
     print('get_zendesk_ticket error')
     return {}
 
+def numberToLetters(q):
+  q = q - 1
+  result = ''
+  while q >= 0:
+      remain = q % 26
+      result = chr(remain+65) + result
+      q = q//26 - 1
+  return result
+
+def colrow_to_A1(col, row):
+    return numberToLetters(col)+str(row)
+
+def update_sheet(ws, rows, left=1, top=2):
+  print(rows)
+
+  # number of rows and columns
+  num_lines, num_columns = len(rows), len(rows[0])
+
+  # selection of the range that will be updated
+  cell_list = ws.range(
+      colrow_to_A1(left,top)+':'+colrow_to_A1(left+num_columns-1, top+num_lines-1)
+  )
+
+  # modifying the values in the range
+  for cell in cell_list:
+    val = rows[cell.row-top][cell.col-left]
+    print('val = ' + val)
+    cell.value = val
+
+  # update in batch
+  ws.update_cells(cell_list)
+
+# The trello_boards object could be built programmatically if boards and lists are named consistently. An example is below but is not used to pull this report.
+def get_trello_boards():
+  trello_boards = []
+  boards_json = requests.request('GET', trello.url_members + trello.tokens).json()
+  for b in boards_json:
+    if b['name'].startswith('Support -'):
+      lists_json = requests.request('GET', trello.url_boards + b['id'] + '/lists' + trello.tokens).json()
+      for l in lists_json:
+        if 'Waiting' in l['name']:
+          trello_boards.append({
+            'name': b['name'], 'id': b['id'], 'lists': [
+              {'name': l['name'], 'id': l['id']}
+            ]
+          })
+  return trello_boards
+
 def main_script():
+  table = []
   print('--------------------')
   for b in trello.trello_boards:
     for l in b['lists']:
@@ -73,7 +122,6 @@ def main_script():
         print(str(x) + ' - ' + c['name'])
         zendesk_url = find_zendesk_url(c)
         zendesk_id = zendesk_url.split('/').pop()
-        print('    Ticket #' + zendesk_id)
         new_row = [
           b['name'],
           l['name'],
@@ -85,14 +133,19 @@ def main_script():
         if len(zendesk_id) <= 6:
           zendesk_ticket = get_zendesk_ticket(zendesk_id)
           try:
-            new_row.append(zendesk_ticket['zAssigneeName'])
-            new_row.append(zendesk_ticket['zStatus'])
-            new_row.append(str(dt.datetime.strptime(zendesk_ticket['zLastUpdated'], '%Y-%m-%dT%H:%M:%SZ')))
+            new_row.extend((zendesk_ticket['zAssigneeName'], zendesk_ticket['zStatus'], str(dt.datetime.strptime(zendesk_ticket['zLastUpdated'], '%Y-%m-%dT%H:%M:%SZ'))))
           except KeyError:
             print(zendesk_id, 'No Zendesk Ticket Found')
-        print(new_row)
-        wks.insert_row(new_row, index=2, value_input_option='USER_ENTERED')
+            new_row.extend(('x', 'error', 'x'))
+        else:
+          new_row.extend(('x', 'missing', 'x'))
+
+        # Append card / ticket to the table
+        table.append(new_row)
       print('--------------------')
+
+  # Add card / ticket info to Google Sheet
+  update_sheet(wks, table)
   print('Complete!')
 
 main_script()
