@@ -1,4 +1,8 @@
-# Trello Card Report for Support Escalation Boards
+# Trello Card Report
+Used to reconcile Trello Cards back to their Zendesk Tickets
+
+- Rename `authenticate.py.example` to `authenticate.py` and fill in the relevant info
+- Rename `trello.py.example` to `trello.py` and update object if needed
 
 ## Google Sheets Python API
 NOTE - You may need to use your personal gmail account for these steps
@@ -9,7 +13,10 @@ NOTE - You may need to use your personal gmail account for these steps
 - Create Credentials
 - Put the JSON file in the project directory
 - Add the JSON file name to .gitignore
+- Add the name of the JSON file to `authenticate.py`
 - Create a Google Sheet
 - Share the Google Sheet with the `client_email` listed in the JSON file
 - `pip install --upgrade google-api-python-client oauth2client`
 - `pip install gspread`
+
+Run with `python main.py`
