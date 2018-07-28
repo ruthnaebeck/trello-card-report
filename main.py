@@ -7,13 +7,20 @@ import time
 import datetime as dt
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
+from apiclient.discovery import build
+from httplib2 import Http
 
-assignees = {}
 scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
 credentials = ServiceAccountCredentials.from_json_keyfile_name(authenticate.google_json_file, scope)
 gc = gspread.authorize(credentials)
+service = build('sheets', 'v4', http=credentials.authorize(Http()))
+
+# Get workbook and worksheet
 wb = gc.open_by_key(authenticate.google_sheet_id)
 wks = wb.worksheet('Report')
+
+# Table to organize zendesk ticket assignees by id
+assignees = {}
 
 def find_zendesk_url(card):
   try:
@@ -109,6 +116,21 @@ def get_trello_boards():
   return trello_boards
 
 def main_script():
+  # Duplicate the Report worksheet
+  today = dt.datetime.today().strftime('%m-%d-%y')
+  DATA = {'requests': [
+    {
+        'duplicateSheet': {
+            'sourceSheetId': int(wks.id),
+            'insertSheetIndex': 0,
+            'newSheetName': 'Report ' + today
+        }
+    }
+  ]}
+  service.spreadsheets().batchUpdate(
+        spreadsheetId=authenticate.google_sheet_id, body=DATA).execute()
+
+  # Collect Trello Card / Zendesk ticket info
   table = []
   print('--------------------')
   for b in trello.trello_boards:
@@ -144,8 +166,9 @@ def main_script():
         table.append(new_row)
       print('--------------------')
 
-  # Add card / ticket info to Google Sheet
-  update_sheet(wks, table)
+  # Add card / ticket info to the newly created worksheet
+  new_wks = wb.worksheet('Report ' + today)
+  update_sheet(new_wks, table)
   print('Complete!')
 
 main_script()
