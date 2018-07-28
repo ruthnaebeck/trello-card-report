@@ -7,13 +7,18 @@ import time
 import datetime as dt
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
+from apiclient.discovery import build
+from httplib2 import Http
 
-assignees = {}
 scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
 credentials = ServiceAccountCredentials.from_json_keyfile_name(authenticate.google_json_file, scope)
 gc = gspread.authorize(credentials)
-wb = gc.open_by_key(authenticate.google_sheet_id)
-wks = wb.worksheet('Report')
+service = build('sheets', 'v4', http=credentials.authorize(Http()))
+# wb = gc.open_by_key(authenticate.google_sheet_id)
+# wks = wb.worksheet('Report')
+
+# Table to organize zendesk ticket assignees by id
+assignees = {}
 
 def find_zendesk_url(card):
   try:
@@ -148,4 +153,34 @@ def main_script():
   update_sheet(wks, table)
   print('Complete!')
 
-main_script()
+# main_script()
+
+def workbook_stuff():
+  today = dt.datetime.today().strftime('%m-%d-%y')
+  wb = gc.open_by_key(authenticate.google_sheet_id)
+  wks = wb.add_worksheet(title='Report ' + today, rows='700', cols='11')
+
+  header_range = wks.range('A1:J1')
+  header_row = [
+    ['Trello Board', 'Trello List', 'Trello Card Name', 'Trello Link', 'Trello Updated', 'Zendesk Link', 'Zendesk Assignee', 'Zendesk Status', 'Zendesk Updated', 'Comment']
+  ]
+
+  for cell in header_range:
+    val = header_row[cell.row-1][cell.col-1]
+    cell.value = val
+    print(cell)
+
+  DATA = {'requests': [
+    {'repeatCell': {
+        'range': {'sheetId': wks.id, 'endRowIndex': 1},
+        'cell':  {'userEnteredFormat': {'textFormat': {'bold': True}}},
+        'fields': 'userEnteredFormat.textFormat.bold',
+    }}
+  ]}
+
+  service.spreadsheets().batchUpdate(
+        spreadsheetId=authenticate.google_sheet_id, body=DATA).execute()
+
+  wks.update_cells(header_range)
+
+workbook_stuff()
