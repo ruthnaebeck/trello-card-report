@@ -117,12 +117,13 @@ def get_trello_boards():
 
 def main_script():
   # Duplicate the Report worksheet
+  today = dt.datetime.today().strftime('%m-%d-%y')
   DATA = {'requests': [
     {
         'duplicateSheet': {
             'sourceSheetId': int(wks.id),
             'insertSheetIndex': 0,
-            'newSheetName': 'Report ' + dt.datetime.today().strftime('%m-%d-%y')
+            'newSheetName': 'Report ' + today
         }
     }
   ]}
@@ -165,8 +166,9 @@ def main_script():
         table.append(new_row)
       print('--------------------')
 
-  # Add card / ticket info to Google Sheet
-  update_sheet(wks, table)
+  # Add card / ticket info to the newly created worksheet
+  new_wks = wb.worksheet('Report ' + today)
+  update_sheet(new_wks, table)
   print('Complete!')
 
 main_script()
