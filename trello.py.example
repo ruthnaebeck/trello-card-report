@@ -1,4 +1,4 @@
-import authenticate
+import secrets
 
 # API url variables
 url = 'https://api.trello.com/1/'
@@ -6,7 +6,7 @@ url_lists = url + 'lists/'
 url_cards = url + 'cards/'
 url_members = url + 'members/me/boards'
 url_boards = url + 'boards/'
-tokens = '?key=%s&token=%s' % (authenticate.trello_api_key, authenticate.trello_api_token)
+tokens = '?key=%s&token=%s' % (secrets.trello_api_key, secrets.trello_api_token)
 
 # Boards / Lists to check if you need to statically list them
 trello_boards = [

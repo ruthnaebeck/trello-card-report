@@ -1,4 +1,4 @@
-import authenticate
+import secrets
 import trello
 import requests
 import re
@@ -11,12 +11,12 @@ from apiclient.discovery import build
 from httplib2 import Http
 
 scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
-credentials = ServiceAccountCredentials.from_json_keyfile_name(authenticate.google_json_file, scope)
+credentials = ServiceAccountCredentials.from_json_keyfile_name(secrets.google_json_file, scope)
 gc = gspread.authorize(credentials)
 service = build('sheets', 'v4', http=credentials.authorize(Http()))
 
 # Get workbook and worksheet
-wb = gc.open_by_key(authenticate.google_sheet_id)
+wb = gc.open_by_key(secrets.google_sheet_id)
 wks = wb.worksheet('Report')
 
 # Table to organize zendesk ticket assignees by id
@@ -42,7 +42,7 @@ def find_zendesk_url(card):
 def get_zendesk_user(user_id):
   try:
     get_ticket_url = 'https://datadog.zendesk.com/api/v2/users/%s.json' % (user_id)
-    user_json = requests.get(url=get_ticket_url, auth=(authenticate.zendesk_email, authenticate.zendesk_password)).json()['user']
+    user_json = requests.get(url=get_ticket_url, auth=(secrets.zendesk_email, secrets.zendesk_password)).json()['user']
     return user_json['name']
   except:
     return 'get_zendesk_user error'
@@ -50,7 +50,7 @@ def get_zendesk_user(user_id):
 def get_zendesk_ticket(ticket_id):
   try:
     get_ticket_url = 'https://datadog.zendesk.com/api/v2/tickets/%s.json' % (ticket_id)
-    ticket_json = requests.get(url=get_ticket_url, auth=(authenticate.zendesk_email, authenticate.zendesk_password)).json()['ticket']
+    ticket_json = requests.get(url=get_ticket_url, auth=(secrets.zendesk_email, secrets.zendesk_password)).json()['ticket']
     assignee_id = ticket_json['assignee_id']
     try:
       assignee_name = assignees[assignee_id]
@@ -128,7 +128,7 @@ def main_script():
     }
   ]}
   service.spreadsheets().batchUpdate(
-        spreadsheetId=authenticate.google_sheet_id, body=DATA).execute()
+        spreadsheetId=secrets.google_sheet_id, body=DATA).execute()
 
   # Collect Trello Card / Zendesk ticket info
   table = []

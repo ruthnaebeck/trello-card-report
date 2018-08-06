@@ -1,4 +1,4 @@
 *.pyc
-authenticate.py
+secrets.py
 trello.py
 trello-card*
