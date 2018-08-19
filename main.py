@@ -2,6 +2,7 @@ import secrets
 import trello
 import leads
 from zendesk import find_zendesk_url, get_zendesk_user, get_zendesk_ticket
+from sheets import update_sheet
 
 import requests
 import datetime as dt
@@ -22,38 +23,6 @@ wb = gc.open_by_key(secrets.google_sheet_id)
 wks = wb.worksheet('Report')
 
 datadog_api = {}
-
-def numberToLetters(q):
-  q = q - 1
-  result = ''
-  while q >= 0:
-      remain = q % 26
-      result = chr(remain+65) + result
-      q = q//26 - 1
-  return result
-
-def colrow_to_A1(col, row):
-    return numberToLetters(col)+str(row)
-
-def update_sheet(ws, rows, left=1, top=2):
-  print(rows)
-
-  # number of rows and columns
-  num_lines, num_columns = len(rows), len(rows[0])
-
-  # selection of the range that will be updated
-  cell_list = ws.range(
-      colrow_to_A1(left,top)+':'+colrow_to_A1(left+num_columns-1, top+num_lines-1)
-  )
-
-  # modifying the values in the range
-  for cell in cell_list:
-    val = rows[cell.row-top][cell.col-left]
-    print('val = ' + val)
-    cell.value = val
-
-  # update in batch
-  ws.update_cells(cell_list)
 
 def get_team_lead(a):
   try:
@@ -79,18 +48,18 @@ def remove_accents(input_str):
 
 def main_script():
   # Duplicate the Report worksheet
-  # today = dt.datetime.today().strftime('%m-%d-%y')
-  # DATA = {'requests': [
-  #   {
-  #       'duplicateSheet': {
-  #           'sourceSheetId': int(wks.id),
-  #           'insertSheetIndex': 0,
-  #           'newSheetName': 'Report ' + today
-  #       }
-  #   }
-  # ]}
-  # service.spreadsheets().batchUpdate(
-  #       spreadsheetId=secrets.google_sheet_id, body=DATA).execute()
+  today = dt.datetime.today().strftime('%m-%d-%y')
+  DATA = {'requests': [
+    {
+        'duplicateSheet': {
+            'sourceSheetId': int(wks.id),
+            'insertSheetIndex': 0,
+            'newSheetName': 'Report ' + today
+        }
+    }
+  ]}
+  service.spreadsheets().batchUpdate(
+        spreadsheetId=secrets.google_sheet_id, body=DATA).execute()
 
   # Collect Trello Card / Zendesk ticket info
   table = []
@@ -131,10 +100,8 @@ def main_script():
       print('--------------------')
 
   # Add card / ticket info to the newly created worksheet
-  # new_wks = wb.worksheet('Report ' + today)
-  # update_sheet(new_wks, table)
-  # print(table)
-  print(datadog_api)
+  new_wks = wb.worksheet('Report ' + today)
+  update_sheet(new_wks, table)
   print('Complete!')
 
 main_script()
