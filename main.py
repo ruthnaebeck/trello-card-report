@@ -1,5 +1,6 @@
 import secrets
 import trello
+import leads
 import requests
 import re
 import json
@@ -9,6 +10,7 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from apiclient.discovery import build
 from httplib2 import Http
+import unicodedata
 
 scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
 credentials = ServiceAccountCredentials.from_json_keyfile_name(secrets.google_json_file, scope)
@@ -21,6 +23,7 @@ wks = wb.worksheet('Report')
 
 # Table to organize zendesk ticket assignees by id
 assignees = {}
+datadog_api = {}
 
 def find_zendesk_url(card):
   try:
@@ -115,20 +118,41 @@ def get_trello_boards():
           })
   return trello_boards
 
+def get_team_lead(a):
+  try:
+    return 'lead:' + leads.leads[a]
+  except KeyError:
+    return 'lead:unknown'
+
+def add_to_datadog_api(b, l, a, s):
+  key = b + l + a + s
+  try:
+    datadog_api[key]['points'] += 1
+  except KeyError:
+    datadog_api[key] = {
+      'metric': 'trello.card.count',
+      'points': 1,
+      'tags': [b, l, a, get_team_lead(a), s]
+    }
+
+def remove_accents(input_str):
+  nfkd_form = unicodedata.normalize('NFKD', input_str)
+  return u"".join([c for c in nfkd_form if not unicodedata.combining(c)])
+
 def main_script():
   # Duplicate the Report worksheet
-  today = dt.datetime.today().strftime('%m-%d-%y')
-  DATA = {'requests': [
-    {
-        'duplicateSheet': {
-            'sourceSheetId': int(wks.id),
-            'insertSheetIndex': 0,
-            'newSheetName': 'Report ' + today
-        }
-    }
-  ]}
-  service.spreadsheets().batchUpdate(
-        spreadsheetId=secrets.google_sheet_id, body=DATA).execute()
+  # today = dt.datetime.today().strftime('%m-%d-%y')
+  # DATA = {'requests': [
+  #   {
+  #       'duplicateSheet': {
+  #           'sourceSheetId': int(wks.id),
+  #           'insertSheetIndex': 0,
+  #           'newSheetName': 'Report ' + today
+  #       }
+  #   }
+  # ]}
+  # service.spreadsheets().batchUpdate(
+  #       spreadsheetId=secrets.google_sheet_id, body=DATA).execute()
 
   # Collect Trello Card / Zendesk ticket info
   table = []
@@ -155,20 +179,25 @@ def main_script():
         if len(zendesk_id) <= 6:
           zendesk_ticket = get_zendesk_ticket(zendesk_id)
           try:
-            new_row.extend((zendesk_ticket['zAssigneeName'], zendesk_ticket['zStatus'], str(dt.datetime.strptime(zendesk_ticket['zLastUpdated'], '%Y-%m-%dT%H:%M:%SZ'))))
+            agent = zendesk_ticket['zAssigneeName']
+            status = zendesk_ticket['zStatus']
+            new_row.extend((agent, status, str(dt.datetime.strptime(zendesk_ticket['zLastUpdated'], '%Y-%m-%dT%H:%M:%SZ'))))
+            add_to_datadog_api(b['tag'], l['tag'], 'zendesk_agent:' + remove_accents(agent.replace(' ', '_').lower()), 'zendesk_status:' + status)
           except KeyError:
-            print(zendesk_id, 'No Zendesk Ticket Found')
-            new_row.extend(('x', 'error', 'x'))
+            new_row.extend(('unknown', 'error', 'x'))
         else:
-          new_row.extend(('x', 'missing', 'x'))
+          new_row.extend(('no_ticket', 'missing', 'x'))
 
         # Append card / ticket to the table
         table.append(new_row)
       print('--------------------')
 
   # Add card / ticket info to the newly created worksheet
-  new_wks = wb.worksheet('Report ' + today)
-  update_sheet(new_wks, table)
+  # new_wks = wb.worksheet('Report ' + today)
+  # update_sheet(new_wks, table)
+  # print(table)
+  # print(assignees)
+  print(datadog_api)
   print('Complete!')
 
 main_script()

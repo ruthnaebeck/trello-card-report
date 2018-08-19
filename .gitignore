@@ -1,4 +1,7 @@
 *.pyc
+datadog-api.py
+leads.py
 secrets.py
+test*
 trello.py
 trello-card*
