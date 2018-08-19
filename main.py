@@ -4,12 +4,10 @@ import leads
 from zendesk import find_zendesk_url, get_zendesk_user, get_zendesk_ticket
 
 import requests
-import re
-import json
-import time
 import datetime as dt
 import unicodedata
 import gspread
+
 from oauth2client.service_account import ServiceAccountCredentials
 from apiclient.discovery import build
 from httplib2 import Http
@@ -56,22 +54,6 @@ def update_sheet(ws, rows, left=1, top=2):
 
   # update in batch
   ws.update_cells(cell_list)
-
-# The trello_boards object could be built programmatically if boards and lists are named consistently. An example is below but is not used to pull this report.
-def get_trello_boards():
-  trello_boards = []
-  boards_json = requests.request('GET', trello.url_members + trello.tokens).json()
-  for b in boards_json:
-    if b['name'].startswith('Support -'):
-      lists_json = requests.request('GET', trello.url_boards + b['id'] + '/lists' + trello.tokens).json()
-      for l in lists_json:
-        if 'Waiting' in l['name']:
-          trello_boards.append({
-            'name': b['name'], 'id': b['id'], 'lists': [
-              {'name': l['name'], 'id': l['id']}
-            ]
-          })
-  return trello_boards
 
 def get_team_lead(a):
   try:

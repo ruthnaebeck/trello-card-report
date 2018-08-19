@@ -21,3 +21,19 @@ trello_boards = [
     ]
   }
 ]
+
+# The trello_boards object could be built programmatically if boards and lists are named consistently. An example is below but is not used to pull this report.
+def get_trello_boards():
+  trello_boards = []
+  boards_json = requests.request('GET', trello.url_members + trello.tokens).json()
+  for b in boards_json:
+    if b['name'].startswith('Support -'):
+      lists_json = requests.request('GET', trello.url_boards + b['id'] + '/lists' + trello.tokens).json()
+      for l in lists_json:
+        if 'Waiting' in l['name']:
+          trello_boards.append({
+            'name': b['name'], 'id': b['id'], 'lists': [
+              {'name': l['name'], 'id': l['id']}
+            ]
+          })
+  return trello_boards
