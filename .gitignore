@@ -1,5 +1,4 @@
 *.pyc
-datadog-api.py
 leads.py
 secrets.py
 trello.py

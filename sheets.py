@@ -22,7 +22,6 @@ def update_sheet(ws, rows, left=1, top=2):
   # modifying the values in the range
   for cell in cell_list:
     val = rows[cell.row-top][cell.col-left]
-    print('val = ' + val)
     cell.value = val
 
   # update in batch

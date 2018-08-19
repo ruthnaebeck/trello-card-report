@@ -3,12 +3,13 @@ import trello
 import leads
 from zendesk import find_zendesk_url, get_zendesk_user, get_zendesk_ticket
 from sheets import update_sheet
+from datadog_api import add_to_datadog_api, remove_accents, datadog_api
 
 import requests
 import datetime as dt
-import unicodedata
 import gspread
 
+# Google Sheets imports / settings
 from oauth2client.service_account import ServiceAccountCredentials
 from apiclient.discovery import build
 from httplib2 import Http
@@ -18,33 +19,18 @@ credentials = ServiceAccountCredentials.from_json_keyfile_name(secrets.google_js
 gc = gspread.authorize(credentials)
 service = build('sheets', 'v4', http=credentials.authorize(Http()))
 
-# Get workbook and worksheet
 wb = gc.open_by_key(secrets.google_sheet_id)
 wks = wb.worksheet('Report')
 
-datadog_api = {}
+# Datadog API imports / settings
+from datadog import initialize, api
 
-def get_team_lead(a):
-  try:
-    return 'lead:' + leads.leads[a]
-  except KeyError:
-    return 'lead:unknown'
+options = {
+    'api_key': secrets.datadog_api_key,
+    'app_key': secrets.datadog_app_key
+}
 
-def add_to_datadog_api(b, l, a, s):
-  key = b + l + a + s
-  try:
-    datadog_api[key]['points'] += 1
-  except KeyError:
-    lead = get_team_lead(a.split(':')[1])
-    datadog_api[key] = {
-      'metric': 'trello.card.count',
-      'points': 1,
-      'tags': [b, l, a, lead, s]
-    }
-
-def remove_accents(input_str):
-  nfkd_form = unicodedata.normalize('NFKD', input_str)
-  return u"".join([c for c in nfkd_form if not unicodedata.combining(c)])
+initialize(**options)
 
 def main_script():
   # Duplicate the Report worksheet
@@ -102,6 +88,17 @@ def main_script():
   # Add card / ticket info to the newly created worksheet
   new_wks = wb.worksheet('Report ' + today)
   update_sheet(new_wks, table)
+
+  # Add metrics through datadog api
+  metrics = []
+
+  for attr, val in datadog_api.items():
+    metrics.append(val)
+
+  # Submit multiple metrics
+  print(metrics)
+  # api.Metric.send(metrics)
+
   print('Complete!')
 
 main_script()
