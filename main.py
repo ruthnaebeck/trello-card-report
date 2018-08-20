@@ -1,11 +1,15 @@
 import secrets
 import trello
+import leads
+from zendesk import find_zendesk_url, get_zendesk_user, get_zendesk_ticket
+from sheets import update_sheet
+from datadog_api import add_to_datadog_api, remove_accents, datadog_api
+
 import requests
-import re
-import json
-import time
 import datetime as dt
 import gspread
+
+# Google Sheets imports / settings
 from oauth2client.service_account import ServiceAccountCredentials
 from apiclient.discovery import build
 from httplib2 import Http
@@ -15,105 +19,18 @@ credentials = ServiceAccountCredentials.from_json_keyfile_name(secrets.google_js
 gc = gspread.authorize(credentials)
 service = build('sheets', 'v4', http=credentials.authorize(Http()))
 
-# Get workbook and worksheet
 wb = gc.open_by_key(secrets.google_sheet_id)
 wks = wb.worksheet('Report')
 
-# Table to organize zendesk ticket assignees by id
-assignees = {}
+# Datadog API imports / settings
+from datadog import initialize, api
 
-def find_zendesk_url(card):
-  try:
-    attach_json = requests.request('GET', trello.url_cards + card['id'] + '/attachments' + trello.tokens).json()
-    if len(attach_json):
-      for a in attach_json:
-        if a['url'].startswith('https://datadog.zendesk.com/agent/tickets/'):
-          return a['url']
-    regex = r'https:\/\/datadog\.zendesk\.com\/agent\/tickets\/[0-9]*'
-    card_str = json.dumps(card)
-    searchObj = re.search(regex, card_str, re.M|re.I)
-    if searchObj:
-      return searchObj.group()
-    else:
-      return 'No Zendesk Ticket Found'
-  except:
-    return 'find_zendesk_url error'
+options = {
+    'api_key': secrets.datadog_api_key,
+    'app_key': secrets.datadog_app_key
+}
 
-def get_zendesk_user(user_id):
-  try:
-    get_ticket_url = 'https://datadog.zendesk.com/api/v2/users/%s.json' % (user_id)
-    user_json = requests.get(url=get_ticket_url, auth=(secrets.zendesk_email, secrets.zendesk_password)).json()['user']
-    return user_json['name']
-  except:
-    return 'get_zendesk_user error'
-
-def get_zendesk_ticket(ticket_id):
-  try:
-    get_ticket_url = 'https://datadog.zendesk.com/api/v2/tickets/%s.json' % (ticket_id)
-    ticket_json = requests.get(url=get_ticket_url, auth=(secrets.zendesk_email, secrets.zendesk_password)).json()['ticket']
-    assignee_id = ticket_json['assignee_id']
-    try:
-      assignee_name = assignees[assignee_id]
-    except KeyError:
-      assignee_name = get_zendesk_user(assignee_id)
-      assignees[assignee_id] = assignee_name
-    return {
-      'zAssigneeId': assignee_id,
-      'zAssigneeName': assignee_name,
-      'zStatus': ticket_json['status'],
-      'zLastUpdated': ticket_json['updated_at']
-    }
-  except:
-    print('get_zendesk_ticket error')
-    return {}
-
-def numberToLetters(q):
-  q = q - 1
-  result = ''
-  while q >= 0:
-      remain = q % 26
-      result = chr(remain+65) + result
-      q = q//26 - 1
-  return result
-
-def colrow_to_A1(col, row):
-    return numberToLetters(col)+str(row)
-
-def update_sheet(ws, rows, left=1, top=2):
-  print(rows)
-
-  # number of rows and columns
-  num_lines, num_columns = len(rows), len(rows[0])
-
-  # selection of the range that will be updated
-  cell_list = ws.range(
-      colrow_to_A1(left,top)+':'+colrow_to_A1(left+num_columns-1, top+num_lines-1)
-  )
-
-  # modifying the values in the range
-  for cell in cell_list:
-    val = rows[cell.row-top][cell.col-left]
-    print('val = ' + val)
-    cell.value = val
-
-  # update in batch
-  ws.update_cells(cell_list)
-
-# The trello_boards object could be built programmatically if boards and lists are named consistently. An example is below but is not used to pull this report.
-def get_trello_boards():
-  trello_boards = []
-  boards_json = requests.request('GET', trello.url_members + trello.tokens).json()
-  for b in boards_json:
-    if b['name'].startswith('Support -'):
-      lists_json = requests.request('GET', trello.url_boards + b['id'] + '/lists' + trello.tokens).json()
-      for l in lists_json:
-        if 'Waiting' in l['name']:
-          trello_boards.append({
-            'name': b['name'], 'id': b['id'], 'lists': [
-              {'name': l['name'], 'id': l['id']}
-            ]
-          })
-  return trello_boards
+initialize(**options)
 
 def main_script():
   # Duplicate the Report worksheet
@@ -155,12 +72,18 @@ def main_script():
         if len(zendesk_id) <= 6:
           zendesk_ticket = get_zendesk_ticket(zendesk_id)
           try:
-            new_row.extend((zendesk_ticket['zAssigneeName'], zendesk_ticket['zStatus'], str(dt.datetime.strptime(zendesk_ticket['zLastUpdated'], '%Y-%m-%dT%H:%M:%SZ'))))
+            agent = zendesk_ticket['zAssigneeName']
+            status = zendesk_ticket['zStatus']
+            if(isinstance(agent, str)):
+              agent = u'unknown'
+            new_row.extend((agent, status, str(dt.datetime.strptime(zendesk_ticket['zLastUpdated'], '%Y-%m-%dT%H:%M:%SZ'))))
+            add_to_datadog_api(b['tag'], l['tag'], 'zendesk_agent:' + remove_accents(agent.replace(' ', '_').lower()), 'zendesk_status:' + status)
           except KeyError:
-            print(zendesk_id, 'No Zendesk Ticket Found')
-            new_row.extend(('x', 'error', 'x'))
+            new_row.extend(('unknown', 'error', 'x'))
+            add_to_datadog_api(b['tag'], l['tag'], 'zendesk_agent:unknown', 'zendesk_status:error')
         else:
-          new_row.extend(('x', 'missing', 'x'))
+          new_row.extend(('unknown', 'missing', 'x'))
+          add_to_datadog_api(b['tag'], l['tag'], 'zendesk_agent:unknown', 'zendesk_status:missing')
 
         # Append card / ticket to the table
         table.append(new_row)
@@ -169,6 +92,16 @@ def main_script():
   # Add card / ticket info to the newly created worksheet
   new_wks = wb.worksheet('Report ' + today)
   update_sheet(new_wks, table)
+
+  # Add metrics through datadog api
+  metrics = []
+
+  for attr, val in datadog_api.items():
+    metrics.append(val)
+
+  print(metrics)
+  api.Metric.send(metrics)
+
   print('Complete!')
 
 main_script()

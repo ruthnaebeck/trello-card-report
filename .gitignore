@@ -1,4 +1,5 @@
 *.pyc
+leads.py
 secrets.py
 trello.py
 trello-card*
