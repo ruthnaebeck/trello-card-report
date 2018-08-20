@@ -82,8 +82,8 @@ def main_script():
             new_row.extend(('unknown', 'error', 'x'))
             add_to_datadog_api(b['tag'], l['tag'], 'zendesk_agent:unknown', 'zendesk_status:error')
         else:
-          new_row.extend(('no_ticket', 'missing', 'x'))
-          add_to_datadog_api(b['tag'], l['tag'], 'zendesk_agent:no_ticket', 'zendesk_status:missing')
+          new_row.extend(('unknown', 'missing', 'x'))
+          add_to_datadog_api(b['tag'], l['tag'], 'zendesk_agent:unknown', 'zendesk_status:missing')
 
         # Append card / ticket to the table
         table.append(new_row)
