@@ -74,12 +74,16 @@ def main_script():
           try:
             agent = zendesk_ticket['zAssigneeName']
             status = zendesk_ticket['zStatus']
+            if(isinstance(agent, str)):
+              agent = u'unknown'
             new_row.extend((agent, status, str(dt.datetime.strptime(zendesk_ticket['zLastUpdated'], '%Y-%m-%dT%H:%M:%SZ'))))
             add_to_datadog_api(b['tag'], l['tag'], 'zendesk_agent:' + remove_accents(agent.replace(' ', '_').lower()), 'zendesk_status:' + status)
           except KeyError:
             new_row.extend(('unknown', 'error', 'x'))
+            add_to_datadog_api(b['tag'], l['tag'], 'zendesk_agent:unknown', 'zendesk_status:error')
         else:
           new_row.extend(('no_ticket', 'missing', 'x'))
+          add_to_datadog_api(b['tag'], l['tag'], 'zendesk_agent:no_ticket', 'zendesk_status:missing')
 
         # Append card / ticket to the table
         table.append(new_row)
