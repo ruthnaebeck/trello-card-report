@@ -95,9 +95,8 @@ def main_script():
   for attr, val in datadog_api.items():
     metrics.append(val)
 
-  # Submit multiple metrics
   print(metrics)
-  # api.Metric.send(metrics)
+  api.Metric.send(metrics)
 
   print('Complete!')
 
