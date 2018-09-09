@@ -77,7 +77,7 @@ def main_script():
             status = zendesk_ticket['zStatus']
             hold_pending = status == 'hold' or status == 'pending'
             if c['dateLastActivity'] > zendesk_ticket['zLastUpdated'] and hold_pending:
-              status = u'open'
+              status = u're-opened'
               tickets_to_open.append(zendesk_id)
             if(isinstance(agent, str)):
               agent = u'unknown'
