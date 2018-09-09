@@ -1,7 +1,7 @@
 import secrets
 import trello
 import leads
-from zendesk import find_zendesk_url, get_zendesk_user, get_zendesk_ticket
+from zendesk import find_zendesk_url, get_zendesk_user, get_zendesk_ticket, open_zendesk_tickets
 from sheets import update_sheet
 from datadog_api import add_to_datadog_api, remove_accents, datadog_api
 
@@ -49,6 +49,7 @@ def main_script():
 
   # Collect Trello Card / Zendesk ticket info
   table = []
+  tickets_to_open = []
   print('--------------------')
   for b in trello.trello_boards:
     for l in b['lists']:
@@ -74,6 +75,10 @@ def main_script():
           try:
             agent = zendesk_ticket['zAssigneeName']
             status = zendesk_ticket['zStatus']
+            hold_pending = status == 'hold' or status == 'pending'
+            if c['dateLastActivity'] > zendesk_ticket['zLastUpdated'] and hold_pending:
+              status = u'open'
+              tickets_to_open.append(zendesk_id)
             if(isinstance(agent, str)):
               agent = u'unknown'
             new_row.extend((agent, status, str(dt.datetime.strptime(zendesk_ticket['zLastUpdated'], '%Y-%m-%dT%H:%M:%SZ'))))
@@ -99,8 +104,13 @@ def main_script():
   for attr, val in datadog_api.items():
     metrics.append(val)
 
-  print(metrics)
   api.Metric.send(metrics)
+
+  # Open Zendesk tickets where last date Trello Card updated > last Zendesk ticket updated + status = pending or hold
+  print('Tickets to open: ', len(tickets_to_open))
+  if(len(tickets_to_open) > 0):
+    confirm = open_zendesk_tickets(tickets_to_open)
+    print(confirm)
 
   print('Complete!')
 
