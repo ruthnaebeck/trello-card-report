@@ -1,5 +1,5 @@
 # Trello Card Report
-Used to reconcile Trello Cards back to their Zendesk Tickets
+Used to reconcile Trello Cards back to their Zendesk Tickets. The script will add information to a preset Google Sheet, send statistics to Datadog, and re-open Zendesk tickets with a pending or on hold status where the last date updated is less than the last date the Trello card was updated.
 
 - Rename `secrets.py.example` to `secrets.py` and fill in the relevant info
 - Rename `trello.py.example` to `trello.py` and update object if needed
