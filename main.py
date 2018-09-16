@@ -77,7 +77,8 @@ def main_script():
             status = zendesk_ticket['zStatus']
             hold_pending = status == 'hold' or status == 'pending'
             if c['dateLastActivity'] > zendesk_ticket['zLastUpdated'] and hold_pending:
-              status = u're-opened'
+              # status = u're-opened'
+              status = u'flagged'
               tickets_to_open.append(zendesk_id)
             if(isinstance(agent, str)):
               agent = u'unknown'
@@ -99,18 +100,19 @@ def main_script():
   update_sheet(new_wks, table)
 
   # Add metrics through datadog api
-  metrics = []
+  # metrics = []
 
-  for attr, val in datadog_api.items():
-    metrics.append(val)
+  # for attr, val in datadog_api.items():
+  #   metrics.append(val)
 
-  api.Metric.send(metrics)
+  # api.Metric.send(metrics)
 
   # Open Zendesk tickets where last date Trello Card updated > last Zendesk ticket updated + status = pending or hold
-  print('Tickets to open: ', len(tickets_to_open))
-  if(len(tickets_to_open) > 0):
-    confirm = open_zendesk_tickets(tickets_to_open)
-    print(confirm)
+  print('Tickets that would have been re-opened: ', len(tickets_to_open))
+  print(tickets_to_open)
+  # if(len(tickets_to_open) > 0):
+  #   confirm = open_zendesk_tickets(tickets_to_open)
+  #   print(confirm)
 
   print('Complete!')
 

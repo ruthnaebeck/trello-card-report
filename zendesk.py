@@ -53,16 +53,17 @@ def get_zendesk_ticket(ticket_id):
     return {}
 
 def open_zendesk_tickets(ticket_list):
-    open_tickets_url = str(
-        'https://datadog.zendesk.com/api/v2/tickets/update_many.json?ids=%s' %
-        (','.join(ticket_list),)
-    )
-    parms = json.dumps({'ticket': {'status': 'open'}})
-    print('opening tickets: %s' % (','.join(ticket_list),))
-    resp = requests.put(
-        url=open_tickets_url,
-        auth=(secrets.zendesk_email, secrets.zendesk_password),
-        data=parms,
-        headers={'content-type': 'application/json'}
-    ).text
-    return resp
+    # open_tickets_url = str(
+    #     'https://datadog.zendesk.com/api/v2/tickets/update_many.json?ids=%s' %
+    #     (','.join(ticket_list),)
+    # )
+    # parms = json.dumps({'ticket': {'status': 'open'}})
+    # print('opening tickets: %s' % (','.join(ticket_list),))
+    # resp = requests.put(
+    #     url=open_tickets_url,
+    #     auth=(secrets.zendesk_email, secrets.zendesk_password),
+    #     data=parms,
+    #     headers={'content-type': 'application/json'}
+    # ).text
+    # return resp
+    print('open_zendesk_tickets')
