@@ -34,18 +34,18 @@ initialize(**options)
 
 def main_script():
   # Duplicate the Report worksheet
-  # today = dt.datetime.today().strftime('%m-%d-%y')
-  # DATA = {'requests': [
-  #   {
-  #       'duplicateSheet': {
-  #           'sourceSheetId': int(wks.id),
-  #           'insertSheetIndex': 0,
-  #           'newSheetName': 'Report ' + today
-  #       }
-  #   }
-  # ]}
-  # service.spreadsheets().batchUpdate(
-  #       spreadsheetId=secrets.google_sheet_id, body=DATA).execute()
+  today = dt.datetime.today().strftime('%m-%d-%y')
+  DATA = {'requests': [
+    {
+        'duplicateSheet': {
+            'sourceSheetId': int(wks.id),
+            'insertSheetIndex': 0,
+            'newSheetName': 'Report ' + today
+        }
+    }
+  ]}
+  service.spreadsheets().batchUpdate(
+        spreadsheetId=secrets.google_sheet_id, body=DATA).execute()
 
   # Collect Trello Card / Zendesk ticket info
   table = []
@@ -100,16 +100,16 @@ def main_script():
       print('--------------------')
 
   # Add card / ticket info to the newly created worksheet
-  # new_wks = wb.worksheet('Report ' + today)
-  # update_sheet(new_wks, table)
+  new_wks = wb.worksheet('Report ' + today)
+  update_sheet(new_wks, table)
 
   # Add metrics through datadog api
-  # metrics = []
+  metrics = []
 
-  # for attr, val in datadog_api.items():
-  #   metrics.append(val)
+  for attr, val in datadog_api.items():
+    metrics.append(val)
 
-  # api.Metric.send(metrics)
+  api.Metric.send(metrics)
 
   # Open Zendesk tickets where last date Trello Card updated > last Zendesk ticket updated + status = pending or hold
   print('Tickets that would have been re-opened: ', len(tickets_to_open))
